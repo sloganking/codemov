@@ -1,8 +1,8 @@
+use glob::{glob, GlobError};
 use image::{DynamicImage, GenericImageView, RgbaImage};
-use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use glob::{glob, GlobError};
+use std::{env, fs};
 
 /// Adds invisible padding around an image so it becomes the
 /// requested resolution. The new image will be in the center
@@ -63,10 +63,10 @@ pub fn get_files_in_dir(path: &str, filetype: &str) -> Result<Vec<PathBuf>, Glob
             }
         }
 
-    //< 
+    //<
     // filter out directories
     let paths = paths.into_iter().filter(|e| e.is_file()).collect();
-    
+
     Ok(paths)
 }
 
@@ -80,17 +80,15 @@ pub fn clean_dir(dir: &str) {
 }
 
 fn main() {
-    println!("Hello, world!");
-
     const REPO_CLONING_DIR: &str = "./temp/";
     const IMG_OUTPUT_DIR: &str = "./frames/";
     let repo_link = "https://github.com/sloganking/codevis";
     let repo_branch = "master";
     let repo_name = repo_link.split('/').last().unwrap();
 
-    // clean dir for repo cloning
+    // // clean dir for repo cloning
     clean_dir(REPO_CLONING_DIR);
-    // clean dir for frames
+    // // clean dir for frames
     clean_dir(IMG_OUTPUT_DIR);
 
     //> git list of commits
@@ -110,25 +108,27 @@ fn main() {
         std::env::set_current_dir("./".to_owned() + repo_name + "/")
             .expect("Unable to change directory");
 
-        let branch_vec = Command::new("git")
+        let out = Command::new("git")
+            .args(["rev-list", repo_branch])
+            .output()
+            .unwrap();
+        // println!("out: {:?}", out);
+
+        let commit_list_bytes = Command::new("git")
             .args(["rev-list", repo_branch])
             .output()
             .unwrap()
             .stdout;
-
-        let string = String::from_utf8(branch_vec).unwrap();
-
-        let mut commit_list: Vec<&str> = string.split('\n').collect();
+        let commit_list_string = String::from_utf8(commit_list_bytes).unwrap();
+        let mut commit_list_vec: Vec<&str> = commit_list_string.split('\n').collect();
 
         // remove last empty line
-        commit_list.pop();
-
-        println!("last branch: {}", commit_list.iter().last().unwrap());
+        commit_list_vec.pop();
 
     //<
 
     // render frame for each commit
-    for (i, commit) in commit_list.iter().rev().enumerate() {
+    for (i, commit) in commit_list_vec.iter().rev().enumerate() {
         // git checkout <tag>
         println!("checking out: {}", commit);
         let out = Command::new("git")
@@ -143,6 +143,8 @@ fn main() {
                 "./",
                 "-o",
                 &("../../frames/".to_owned() + &format!("{:09}", i) + ".png"),
+                "--force-full-columns",
+                "false",
             ])
             .output()
             .unwrap();
@@ -151,21 +153,20 @@ fn main() {
     // move to frames directory
     std::env::set_current_dir("../../frames/").expect("Unable to change directory");
 
-    //> resize all images
+    // resize all images to desired video resolution
+    println!("resizing images...");
+    let paths = get_files_in_dir("./", "").unwrap();
+    for path in paths {
+        resize_image_at(&path.into_os_string().into_string().unwrap(), 1920, 1080);
+    }
 
-        let paths = get_files_in_dir("./", "").unwrap();
-        println!("paths: {:?}", paths);
-        for path in paths{
-            resize_image_at(&path.into_os_string().into_string().unwrap(), 1920,1080);
-        }
+    // println!("env::current_dir: {}", env::current_dir().unwrap().into_os_string().into_string().unwrap());
 
-    //<> generating video
+    //> generating video
 
         println!("generating video");
 
-        let out = Command::new("ls").output().unwrap();
-
-        println!("out: {:?}", out);
+        // println!("out: {:?}", out);
 
         // create video
         // ffmpeg -y -r 30 -f image2 -pattern_type glob -i '*.png' output.mp4
@@ -179,13 +180,13 @@ fn main() {
                 "-pattern_type",
                 "glob",
                 "-i",
-                "'*.png'",
+                "*.png",
                 "../output.mp4",
             ])
             .output()
             .unwrap();
 
-        println!("out: {:?}", out);
+        // println!("out: {:?}", out);
 
     //<
 
