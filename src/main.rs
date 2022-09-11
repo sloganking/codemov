@@ -3,6 +3,7 @@ use image::{DynamicImage, GenericImageView, RgbaImage};
 use std::path::PathBuf;
 use std::process::Command;
 use std::{env, fs};
+mod options;
 
 /// Adds invisible padding around an image so it becomes the
 /// requested resolution. The new image will be in the center
@@ -80,15 +81,21 @@ pub fn clean_dir(dir: &str) {
 }
 
 fn main() {
+    let args: options::Args = clap::Parser::parse();
+
     const REPO_CLONING_DIR: &str = "./temp/";
     const IMG_OUTPUT_DIR: &str = "./frames/";
-    let repo_link = "https://github.com/sloganking/codevis";
+    // let repo_link = "https://github.com/sloganking/codevis";
+    let repo_link = &args.repo;
     let repo_branch = "master";
-    let repo_name = repo_link.split('/').last().unwrap();
+    let repo_name = repo_link
+        .split('/')
+        .last()
+        .expect("could not determine repo name.");
 
-    // // clean dir for repo cloning
+    // clean dir for repo cloning
     clean_dir(REPO_CLONING_DIR);
-    // // clean dir for frames
+    // clean dir for frames
     clean_dir(IMG_OUTPUT_DIR);
 
     //> git list of commits
@@ -130,7 +137,7 @@ fn main() {
     // render frame for each commit
     for (i, commit) in commit_list_vec.iter().rev().enumerate() {
         // git checkout <tag>
-        println!("checking out: {}", commit);
+        println!("rendering commit: {}", commit);
         let out = Command::new("git")
             .args(["checkout", commit])
             .output()
@@ -187,35 +194,9 @@ fn main() {
             .unwrap();
 
         // println!("out: {:?}", out);
-
     //<
 
-    // let out = Command::new("cd").args(["codevis/"]).output().unwrap();
-
-    // cd into cloned dir
-    // can't run Command::new due to this
-    // https://stackoverflow.com/questions/56895623/why-isnt-my-rust-code-cding-into-the-said-directory
-    // std::env::set_current_dir("./codevis/").expect("Unable to change directory");
-
-    // let out = Command::new("git")
-    //     .args(["rev-list", "master"])
-    //     .output()
-    //     .unwrap();
-
-    // std::env::set_current_dir("../").expect("Unable to change directory");
-
-    // let out = Command::new("git")
-    //     .args(["rev-list", "master"])
-    //     .output()
-    //     .unwrap();
-
-    // println!("{:?}", out);
-
-    // let test = out.stdout;
-
-    // let str: String = &out.stdout.from_utf8();
-
-    // let str = String::from_utf8(out.stdout).unwrap();
-
-    // println!("{:?}",str);
+    if args.open {
+        open::that("../output.mp4").expect("Could not open video");
+    }
 }
