@@ -18,7 +18,7 @@ For convenience, some of these may become cargo dependencies at a later date.
 
 To generate a video of this repo `https://github.com/sloganking/codemov` (though any will do)
 
-Run `cargo run -- --repo https://github.com/sloganking/codemov`
+Run `cargo run -- --repo https://github.com/sloganking/codemov --branch master`
 
 For a list of further commands,
 
