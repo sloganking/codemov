@@ -85,7 +85,6 @@ fn main() {
 
     const REPO_CLONING_DIR: &str = "./temp/";
     const IMG_OUTPUT_DIR: &str = "./frames/";
-    // let repo_link = "https://github.com/sloganking/codevis";
     let repo_link = &args.repo;
     let repo_branch = &args.branch;
     let repo_name = repo_link
@@ -101,6 +100,8 @@ fn main() {
     //> get list of commits
 
         // cd to where we will clone repo
+        // can't run Command::new due to this
+        // https://stackoverflow.com/questions/56895623/why-isnt-my-rust-code-cding-into-the-said-directory
         std::env::set_current_dir(REPO_CLONING_DIR).expect("Unable to change directory");
 
         // clone repo
@@ -110,8 +111,6 @@ fn main() {
             .unwrap();
 
         // cd into cloned dir
-        // can't run Command::new due to this
-        // https://stackoverflow.com/questions/56895623/why-isnt-my-rust-code-cding-into-the-said-directory
         std::env::set_current_dir("./".to_owned() + repo_name + "/")
             .expect("Unable to change directory");
 
@@ -164,8 +163,6 @@ fn main() {
             args.height,
         );
     }
-
-    // println!("env::current_dir: {}", env::current_dir().unwrap().into_os_string().into_string().unwrap());
 
     // create video
     println!("generating video");
