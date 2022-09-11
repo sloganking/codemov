@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, clap::Parser)]
 pub struct Args {
-    /// The repository to make a video out of.
+    /// An http link of the repository to make a video out of.
     /// 
     /// An example:
     /// 

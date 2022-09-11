@@ -1,7 +1,10 @@
 use glob::{glob, GlobError};
 use image::{DynamicImage, GenericImageView, RgbaImage};
+use prodash::render;
+use prodash::Progress;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
 use std::{env, fs};
 mod options;
 
@@ -83,6 +86,29 @@ pub fn clean_dir(dir: &str) {
 fn main() {
     let args: options::Args = clap::Parser::parse();
 
+    // let test = render::line::Options::auto_configure(/* prodash::render::line::Options */, /* StreamKind */);
+
+    let progress: Arc<prodash::Tree> = prodash::TreeOptions {
+        message_buffer_capacity: 20,
+        ..Default::default()
+    }
+    .into();
+
+    let render_progress = prodash::render::line(
+        std::io::stderr(),
+        Arc::downgrade(&progress),
+        prodash::render::line::Options {
+            frames_per_second: 24.0,
+            initial_delay: None,
+            timestamp: false,
+            throughput: true,
+            hide_cursor: true,
+            level_filter: Some(0..=2),
+            ..prodash::render::line::Options::default()
+        }
+        .auto_configure(prodash::render::line::StreamKind::Stderr),
+    );
+
     const REPO_CLONING_DIR: &str = "./temp/";
     const IMG_OUTPUT_DIR: &str = "./frames/";
     // let repo_link = "https://github.com/sloganking/codevis";
@@ -135,6 +161,9 @@ fn main() {
     //<
 
     // render frame for each commit
+    let mut progress_item= progress.add_child("rendered");
+    let start = std::time::Instant::now();
+    progress_item.init(Some(commit_list_vec.len()), Some(prodash::unit::label("commits")));
     for (i, commit) in commit_list_vec.iter().rev().enumerate() {
         // git checkout <tag>
         let _ = Command::new("git")
@@ -143,7 +172,7 @@ fn main() {
             .unwrap();
 
         // create image
-        println!("rendering commit: {}", commit);
+        // println!("rendering commit: {}", commit);
         let _ = Command::new("codevis")
             .args([
                 "-i",
@@ -155,26 +184,36 @@ fn main() {
             ])
             .output()
             .unwrap();
+        progress_item.inc_by(1);
+        // progress_item.show_throughput(start);
     }
 
     // move to frames directory
     std::env::set_current_dir("../../frames/").expect("Unable to change directory");
 
     // resize all images to desired video resolution
-    println!("resizing images...");
+    // println!("resizing images...");
     let paths = get_files_in_dir("./", "").unwrap();
+
+    let mut progress_item= progress.add_child("resized");
+    progress_item.init(Some(paths.len()), Some(prodash::unit::label("images")));
+    
     for path in paths {
         resize_image_at(
             &path.into_os_string().into_string().unwrap(),
             args.width,
             args.height,
         );
+        progress_item.inc_by(1);
     }
 
     // println!("env::current_dir: {}", env::current_dir().unwrap().into_os_string().into_string().unwrap());
 
-    // create video
-    println!("generating video");
+    // create video from frames
+    let mut progress_item= progress.add_child("rendering video");
+    progress_item.init(None, None);
+    progress_item.inc();
+
     let _ = Command::new("ffmpeg")
         .args([
             "-y",
@@ -194,4 +233,6 @@ fn main() {
     if args.open {
         open::that("../output.mp4").expect("Could not open video");
     }
+
+    // render_progress.shutdown_and_wait();
 }
