@@ -2,7 +2,7 @@ use glob::{glob, GlobError};
 use image::{DynamicImage, GenericImageView, RgbaImage};
 use std::path::PathBuf;
 use std::process::Command;
-use std::{env, fs};
+use std::fs;
 mod options;
 
 /// Adds invisible padding around an image so it becomes the
