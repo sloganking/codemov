@@ -1,5 +1,7 @@
 # codemov
  
+codemov creates a video of how a git repository's code changes over time. Looking for an image instead of a video? Check out this repo's sister project [codevis](https://github.com/sloganking/codevis).
+ 
 ![](./assets/prodash.gif)
 
 The result of running this repository on [prodash](https://github.com/Byron/prodash)
