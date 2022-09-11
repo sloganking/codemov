@@ -1,8 +1,8 @@
 use glob::{glob, GlobError};
 use image::{DynamicImage, GenericImageView, RgbaImage};
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::fs;
 mod options;
 
 /// Adds invisible padding around an image so it becomes the
@@ -87,7 +87,7 @@ fn main() {
     const IMG_OUTPUT_DIR: &str = "./frames/";
     // let repo_link = "https://github.com/sloganking/codevis";
     let repo_link = &args.repo;
-    let repo_branch = "master";
+    let repo_branch = &args.branch;
     let repo_name = repo_link
         .split('/')
         .last()
@@ -114,12 +114,6 @@ fn main() {
         // https://stackoverflow.com/questions/56895623/why-isnt-my-rust-code-cding-into-the-said-directory
         std::env::set_current_dir("./".to_owned() + repo_name + "/")
             .expect("Unable to change directory");
-
-        let out = Command::new("git")
-            .args(["rev-list", repo_branch])
-            .output()
-            .unwrap();
-        // println!("out: {:?}", out);
 
         let commit_list_bytes = Command::new("git")
             .args(["rev-list", repo_branch])
