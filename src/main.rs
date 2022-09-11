@@ -45,26 +45,24 @@ fn resize_image_at(path: &str, x: u32, y: u32) {
 
 /// Returns a list of all files in a directory and it's subdirectories
 pub fn get_files_in_dir(path: &str, filetype: &str) -> Result<Vec<PathBuf>, GlobError> {
-    //> get list of all files and dirs in path, using glob
-        let mut paths = Vec::new();
+    let mut paths = Vec::new();
 
-        let mut potential_slash = "";
-        if PathBuf::from(path).is_dir() && !path.ends_with('/') {
-            potential_slash = "/";
-        }
+    let mut potential_slash = "";
+    if PathBuf::from(path).is_dir() && !path.ends_with('/') {
+        potential_slash = "/";
+    }
 
-        let search_params = String::from(path) + potential_slash + "**/*" + filetype;
+    let search_params = String::from(path) + potential_slash + "**/*" + filetype;
 
-        for entry in glob(&search_params).expect("Failed to read glob pattern") {
-            match entry {
-                Ok(path) => {
-                    paths.push(path);
-                }
-                Err(e) => return Err(e),
+    for entry in glob(&search_params).expect("Failed to read glob pattern") {
+        match entry {
+            Ok(path) => {
+                paths.push(path);
             }
+            Err(e) => return Err(e),
         }
+    }
 
-    //<
     // filter out directories
     let paths = paths.into_iter().filter(|e| e.is_file()).collect();
 
@@ -164,7 +162,11 @@ fn main() {
     println!("resizing images...");
     let paths = get_files_in_dir("./", "").unwrap();
     for path in paths {
-        resize_image_at(&path.into_os_string().into_string().unwrap(), 1920, 1080);
+        resize_image_at(
+            &path.into_os_string().into_string().unwrap(),
+            args.width,
+            args.height,
+        );
     }
 
     // println!("env::current_dir: {}", env::current_dir().unwrap().into_os_string().into_string().unwrap());
@@ -181,7 +183,7 @@ fn main() {
             .args([
                 "-y",
                 "-r",
-                "30",
+                &args.fps.to_string(),
                 "-f",
                 "image2",
                 "-pattern_type",
