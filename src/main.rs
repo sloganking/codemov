@@ -35,6 +35,8 @@ fn add_buffer_till_image_is(x: u32, y: u32, old_img: &DynamicImage) -> DynamicIm
     new_img.into()
 }
 
+/// Resizes image to be a certain resolution. Adds invisible padding
+/// around the image if it isn't large enough.
 fn resize_image_at(path: &str, x: u32, y: u32) {
     let img = image::open(path).unwrap();
     let img = img.resize(x, y, image::imageops::FilterType::Nearest);
@@ -96,7 +98,7 @@ fn main() {
     // clean dir for frames
     clean_dir(IMG_OUTPUT_DIR);
 
-    //> git list of commits
+    //> get list of commits
 
         // cd to where we will clone repo
         std::env::set_current_dir(REPO_CLONING_DIR).expect("Unable to change directory");
@@ -135,13 +137,13 @@ fn main() {
     // render frame for each commit
     for (i, commit) in commit_list_vec.iter().rev().enumerate() {
         // git checkout <tag>
-        println!("rendering commit: {}", commit);
-        let out = Command::new("git")
+        let _ = Command::new("git")
             .args(["checkout", commit])
             .output()
             .unwrap();
 
         // create image
+        println!("rendering commit: {}", commit);
         let _ = Command::new("codevis")
             .args([
                 "-i",
@@ -171,32 +173,23 @@ fn main() {
 
     // println!("env::current_dir: {}", env::current_dir().unwrap().into_os_string().into_string().unwrap());
 
-    //> generating video
-
-        println!("generating video");
-
-        // println!("out: {:?}", out);
-
-        // create video
-        // ffmpeg -y -r 30 -f image2 -pattern_type glob -i '*.png' output.mp4
-        let out = Command::new("ffmpeg")
-            .args([
-                "-y",
-                "-r",
-                &args.fps.to_string(),
-                "-f",
-                "image2",
-                "-pattern_type",
-                "glob",
-                "-i",
-                "*.png",
-                "../output.mp4",
-            ])
-            .output()
-            .unwrap();
-
-        // println!("out: {:?}", out);
-    //<
+    // create video
+    println!("generating video");
+    let _ = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-r",
+            &args.fps.to_string(),
+            "-f",
+            "image2",
+            "-pattern_type",
+            "glob",
+            "-i",
+            "*.png",
+            "../output.mp4",
+        ])
+        .output()
+        .unwrap();
 
     if args.open {
         open::that("../output.mp4").expect("Could not open video");
