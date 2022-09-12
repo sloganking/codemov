@@ -10,7 +10,7 @@ The result of running this repository on [prodash](https://github.com/Byron/prod
 This repo currently makes use of calling several CLI programs. In order to run it, you must have
 - Installed `git`
 - Installed `ffmpeg`
-- Installed codevis `cargo install codevis@0.1.0`
+- Installed codevis `cargo install codevis@0.1.1`
 
 For convenience, some of these may become cargo dependencies at a later date.
 
