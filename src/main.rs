@@ -1,9 +1,13 @@
+use codevis::render::{BgColor, FgColor};
 use glob::{glob, GlobError};
 use image::{DynamicImage, GenericImageView, RgbaImage};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 mod options;
+use std::path::Path;
 
 /// Adds invisible padding around an image so it becomes the
 /// requested resolution. The new image will be in the center
@@ -99,31 +103,31 @@ fn main() {
 
     //> get list of commits
 
-        // cd to where we will clone repo
-        // can't run Command::new due to this
-        // https://stackoverflow.com/questions/56895623/why-isnt-my-rust-code-cding-into-the-said-directory
-        std::env::set_current_dir(REPO_CLONING_DIR).expect("Unable to change directory");
+    // cd to where we will clone repo
+    // can't run Command::new due to this
+    // https://stackoverflow.com/questions/56895623/why-isnt-my-rust-code-cding-into-the-said-directory
+    std::env::set_current_dir(REPO_CLONING_DIR).expect("Unable to change directory");
 
-        // clone repo
-        let _ = Command::new("git")
-            .args(["clone", repo_link])
-            .output()
-            .unwrap();
+    // clone repo
+    let _ = Command::new("git")
+        .args(["clone", repo_link])
+        .output()
+        .unwrap();
 
-        // cd into cloned dir
-        std::env::set_current_dir("./".to_owned() + repo_name + "/")
-            .expect("Unable to change directory");
+    // cd into cloned dir
+    std::env::set_current_dir("./".to_owned() + repo_name + "/")
+        .expect("Unable to change directory");
 
-        let commit_list_bytes = Command::new("git")
-            .args(["rev-list", repo_branch])
-            .output()
-            .unwrap()
-            .stdout;
-        let commit_list_string = String::from_utf8(commit_list_bytes).unwrap();
-        let mut commit_list_vec: Vec<&str> = commit_list_string.split('\n').collect();
+    let commit_list_bytes = Command::new("git")
+        .args(["rev-list", repo_branch])
+        .output()
+        .unwrap()
+        .stdout;
+    let commit_list_string = String::from_utf8(commit_list_bytes).unwrap();
+    let mut commit_list_vec: Vec<&str> = commit_list_string.split('\n').collect();
 
-        // remove last empty line
-        commit_list_vec.pop();
+    // remove last empty line
+    commit_list_vec.pop();
 
     //<
 
@@ -135,19 +139,46 @@ fn main() {
             .output()
             .unwrap();
 
+        // configure how image should be rendered
+        let opts = codevis::render::Options {
+            column_width: 100,
+            line_height: 2,
+            target_aspect_ratio: 16. / 9.,
+            threads: 0,
+            highlight_truncated_lines: false,
+            fg_color: FgColor::Style,
+            bg_color: BgColor::Style,
+            theme: "Solarized (dark)",
+            force_full_columns: false,
+            ignore_files_without_syntax: false,
+            plain: false,
+            display_to_be_processed_file: false,
+            color_modulation: 0.3,
+        };
+
+        let progress: Arc<prodash::Tree> = prodash::TreeOptions {
+            message_buffer_capacity: false.then(|| 200).unwrap_or(20),
+            ..Default::default()
+        }
+        .into();
+
+        let should_interrupt = Arc::new(AtomicBool::new(false));
+        let (paths, _ignored) = codevis::unicode_content(
+            Path::new("./"),
+            &Vec::new(),
+            progress.add_child("search unicode files"),
+            &should_interrupt,
+        )
+        .expect("failed to get list of files");
+
         // create image
         println!("rendering commit: {}", commit);
-        let _ = Command::new("codevis")
-            .args([
-                "-i",
-                "./",
-                "-o",
-                &("../../frames/".to_owned() + &format!("{:09}", i) + ".png"),
-                "--force-full-columns",
-                "false",
-            ])
-            .output()
-            .unwrap();
+        let img = codevis::render(paths, progress.add_child("render"), &should_interrupt, opts)
+            .expect("failed to render image");
+
+        // save image
+        let output_filename = &("../../frames/".to_owned() + &format!("{:09}", i) + ".png");
+        img.save(output_filename).expect("failed to save file");
     }
 
     // move to frames directory
