@@ -195,6 +195,13 @@ fn main() {
         );
     }
 
+    // determine output_dir
+    let output_dir = if Path::new(&args.output_dir).is_absolute() {
+        args.output_dir
+    } else {
+        String::from("../") + &args.output_dir
+    };
+
     // create video
     println!("generating video");
     let _ = Command::new("ffmpeg")
@@ -208,12 +215,12 @@ fn main() {
             "glob",
             "-i",
             "*.png",
-            "../output.mp4",
+            &output_dir,
         ])
         .output()
         .unwrap();
 
     if args.open {
-        open::that("../output.mp4").expect("Could not open video");
+        open::that(output_dir).expect("Could not open video");
     }
 }

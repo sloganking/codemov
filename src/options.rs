@@ -27,4 +27,8 @@ pub struct Args {
     /// The height of the output video.
     #[clap(long, default_value_t = 15, help_heading = "OUTPUT")]
     pub fps: u32,
+
+    /// Where to save the output file and what name to give it.
+    #[clap(long, short = 'o', default_value_t = String::from("./output.mp4"), help_heading = "OUTPUT")]
+    pub output_dir: String,
 }
