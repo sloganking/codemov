@@ -143,7 +143,7 @@ fn main() {
         let opts = codevis::render::Options {
             column_width: 100,
             line_height: 2,
-            target_aspect_ratio: 16. / 9.,
+            target_aspect_ratio: args.width as f64 / args.height as f64,
             threads: 0,
             highlight_truncated_lines: false,
             fg_color: FgColor::Style,
