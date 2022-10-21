@@ -8,7 +8,7 @@ pub struct Args {
     #[clap(long, short = 'r', help_heading = "INPUT")]
     pub repo: String,
 
-    // The branch of the repository to be rendered.
+    /// The branch of the repository to be rendered.
     #[clap(long, short = 'b', help_heading = "INPUT")]
     pub branch: String,
 
