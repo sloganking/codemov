@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use syntect::highlighting::ThemeSet;
+use syntect::parsing::SyntaxSet;
 mod options;
 use std::path::Path;
 
@@ -171,10 +173,20 @@ fn main() {
         )
         .expect("failed to get list of files");
 
+        let ss = SyntaxSet::load_defaults_newlines();
+        let ts = ThemeSet::load_defaults();
+
         // create image
         println!("rendering commit: {}", commit);
-        let img = codevis::render(paths, progress.add_child("render"), &should_interrupt, opts)
-            .expect("failed to render image");
+        let img = codevis::render(
+            &paths,
+            progress.add_child("render"),
+            &should_interrupt,
+            &ss,
+            &ts,
+            opts,
+        )
+        .expect("failed to render image");
 
         // save image
         let output_filename = &("../../frames/".to_owned() + &format!("{:09}", i) + ".png");
