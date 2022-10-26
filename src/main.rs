@@ -1,6 +1,6 @@
 use codevis::render::{BgColor, FgColor};
 use glob::{glob, GlobError};
-use image::{DynamicImage, GenericImageView, RgbaImage};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Rgb, RgbImage, RgbaImage};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -9,6 +9,7 @@ use std::sync::Arc;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
 mod options;
+use memmap2::MmapMut;
 use std::path::Path;
 
 /// Adds invisible padding around an image so it becomes the
@@ -39,6 +40,18 @@ fn add_buffer_till_image_is(x: u32, y: u32, old_img: &DynamicImage) -> DynamicIm
     }
 
     new_img.into()
+}
+
+fn img_to_mem(img: ImageBuffer<Rgb<u8>, MmapMut>) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+    let mut new_img = RgbImage::new(img.width(), img.height());
+
+    for x in 0..img.width() {
+        for y in 0..img.height() {
+            new_img.put_pixel(x, y, *img.get_pixel(x, y))
+        }
+    }
+
+    new_img
 }
 
 /// Resizes image to be a certain resolution. Adds invisible padding
@@ -127,7 +140,6 @@ fn main() {
         .stdout;
     let commit_list_string = String::from_utf8(commit_list_bytes).unwrap();
     let mut commit_list_vec: Vec<&str> = commit_list_string.split('\n').collect();
-
     // remove last empty line
     commit_list_vec.pop();
 

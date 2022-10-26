@@ -13,3 +13,4 @@ open = "3.0.2"
 codevis = "0.4.0"
 prodash = { version = "20.0.1", features = ["render-line", "render-line-crossterm", "signal-hook", "render-line-autoconfigure", "progress-tree", "unit-bytes"] }
 syntect = "5.0.0"
+memmap2 = "0.5.7"
