@@ -145,6 +145,8 @@ fn main() {
         let opts = codevis::render::Options {
             column_width: 100,
             line_height: 2,
+            readable: false,
+            show_filenames: false,
             target_aspect_ratio: args.width as f64 / args.height as f64,
             threads: 0,
             highlight_truncated_lines: false,
@@ -156,6 +158,8 @@ fn main() {
             plain: false,
             display_to_be_processed_file: false,
             color_modulation: 0.3,
+            tab_spaces: 4,
+            line_nums: false,
         };
 
         let progress: Arc<prodash::Tree> = prodash::TreeOptions {
