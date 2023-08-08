@@ -111,6 +111,7 @@ fn main() {
     std::env::set_current_dir(REPO_CLONING_DIR).expect("Unable to change directory");
 
     // clone repo
+    println!("Performing initial clone of repo");
     let _ = Command::new("git")
         .args(["clone", repo_link])
         .output()
