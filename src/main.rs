@@ -1,6 +1,7 @@
 use codevis::render::{BgColor, FgColor};
 use glob::{glob, GlobError};
 use image::{DynamicImage, GenericImageView, RgbaImage};
+use kdam::tqdm;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -135,7 +136,8 @@ fn main() {
     //<
 
     // render frame for each commit
-    for (i, commit) in commit_list_vec.iter().rev().enumerate() {
+    println!("Rendering commits...");
+    for (i, commit) in tqdm!(commit_list_vec.iter().rev().enumerate()) {
         // git checkout <tag>
         let _ = Command::new("git")
             .args(["checkout", commit])
@@ -182,7 +184,7 @@ fn main() {
         let ts = ThemeSet::load_defaults();
 
         // create image
-        println!("rendering commit: {}", commit);
+        // println!("rendering commit: {}", commit);
         let img = codevis::render(
             &paths,
             progress.add_child("render"),
@@ -204,7 +206,7 @@ fn main() {
     // resize all images to desired video resolution
     println!("resizing images...");
     let paths = get_files_in_dir("./", "").unwrap();
-    for path in paths {
+    for path in tqdm!(paths.into_iter()) {
         resize_image_at(
             &path.into_os_string().into_string().unwrap(),
             args.width,
