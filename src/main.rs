@@ -252,8 +252,8 @@ fn main() {
         line_highlights,
     };
 
-    // Helper to render and save a frame
-    let render_frame = |commit: &str, line_highlights: LineHighlights, frame_num: usize, ss: &SyntaxSet, ts: &ThemeSet| {
+    // Helper to render and save a frame. Returns true if a frame was rendered, false if skipped.
+    let render_frame = |commit: &str, line_highlights: LineHighlights, frame_num: usize, ss: &SyntaxSet, ts: &ThemeSet| -> bool {
         // git checkout the commit
         let _ = Command::new("git")
             .args(["checkout", commit])
@@ -275,6 +275,11 @@ fn main() {
         )
         .expect("failed to get list of files");
 
+        // Skip if there are no files to render (empty commit or only binary files)
+        if paths.children_content.is_empty() {
+            return false;
+        }
+
         let opts = make_opts(line_highlights);
 
         let img = codevis::render(
@@ -289,13 +294,15 @@ fn main() {
 
         let output_filename = format!("../../frames/{:09}.png", frame_num);
         img.save(&output_filename).expect("failed to save file");
+        true
     };
 
     for (i, commit) in tqdm!(commits.iter().enumerate()) {
         if i == 0 {
             // First commit: just render normally (no previous commit to diff against)
-            render_frame(commit, HashMap::new(), frame_num, &ss, &ts);
-            frame_num += 1;
+            if render_frame(commit, HashMap::new(), frame_num, &ss, &ts) {
+                frame_num += 1;
+            }
         } else {
             let prev_commit = commits[i - 1];
             
@@ -304,19 +311,22 @@ fn main() {
 
             // 1. Deletion frame: Show OLD commit with removed lines highlighted in red
             if !diff_info.removed_lines.is_empty() {
-                render_frame(prev_commit, diff_info.removed_lines, frame_num, &ss, &ts);
-                frame_num += 1;
+                if render_frame(prev_commit, diff_info.removed_lines, frame_num, &ss, &ts) {
+                    frame_num += 1;
+                }
             }
 
             // 2. Addition frame: Show NEW commit with added lines highlighted in green
             if !diff_info.added_lines.is_empty() {
-                render_frame(commit, diff_info.added_lines, frame_num, &ss, &ts);
-                frame_num += 1;
+                if render_frame(commit, diff_info.added_lines, frame_num, &ss, &ts) {
+                    frame_num += 1;
+                }
             }
 
             // 3. Normal frame: Show NEW commit without highlights
-            render_frame(commit, HashMap::new(), frame_num, &ss, &ts);
-            frame_num += 1;
+            if render_frame(commit, HashMap::new(), frame_num, &ss, &ts) {
+                frame_num += 1;
+            }
         }
     }
 
