@@ -1,7 +1,8 @@
-use codevis::render::{BgColor, FgColor};
+use codevis::render::{BgColor, FgColor, LineHighlight, LineHighlights};
 use glob::{glob, GlobError};
 use image::{DynamicImage, GenericImageView, RgbaImage};
 use kdam::tqdm;
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -87,6 +88,91 @@ pub fn clean_dir(dir: &str) {
     fs::create_dir(dir).unwrap();
 }
 
+/// Represents the changes between two commits.
+#[derive(Debug, Default)]
+pub struct DiffInfo {
+    /// Lines removed from old commit, indexed by file path -> set of 1-indexed line numbers
+    pub removed_lines: HashMap<PathBuf, HashMap<usize, LineHighlight>>,
+    /// Lines added in new commit, indexed by file path -> set of 1-indexed line numbers
+    pub added_lines: HashMap<PathBuf, HashMap<usize, LineHighlight>>,
+}
+
+/// Parse git diff output to extract added and removed line numbers for each file.
+/// Uses `git diff --unified=0` to get minimal context diff.
+pub fn parse_git_diff(old_commit: &str, new_commit: &str) -> DiffInfo {
+    let output = Command::new("git")
+        .args(["diff", "--unified=0", old_commit, new_commit])
+        .output()
+        .expect("Failed to run git diff");
+
+    let diff_str = String::from_utf8_lossy(&output.stdout);
+    let mut info = DiffInfo::default();
+
+    let mut current_file: Option<PathBuf> = None;
+
+    for line in diff_str.lines() {
+        // Parse file path from diff header
+        // Format: +++ b/path/to/file
+        if let Some(path) = line.strip_prefix("+++ b/") {
+            current_file = Some(PathBuf::from(path));
+            continue;
+        }
+
+        // Parse hunk header to get line numbers
+        // Format: @@ -old_start,old_count +new_start,new_count @@
+        // or: @@ -old_start +new_start @@ (for single line changes)
+        if line.starts_with("@@") && line.contains("@@") {
+            if let Some(ref file_path) = current_file {
+                // Extract the hunk info between @@ markers
+                let parts: Vec<&str> = line.split("@@").collect();
+                if parts.len() >= 2 {
+                    let hunk_info = parts[1].trim();
+                    let chunks: Vec<&str> = hunk_info.split_whitespace().collect();
+
+                    // Parse removed lines (-old_start,old_count or -old_start)
+                    if let Some(removed) = chunks.iter().find(|s| s.starts_with('-')) {
+                        if let Some((start, count)) = parse_hunk_range(removed.trim_start_matches('-')) {
+                            let file_removed = info.removed_lines.entry(file_path.clone()).or_default();
+                            for line_num in start..start + count {
+                                file_removed.insert(line_num, LineHighlight::Removed);
+                            }
+                        }
+                    }
+
+                    // Parse added lines (+new_start,new_count or +new_start)
+                    if let Some(added) = chunks.iter().find(|s| s.starts_with('+')) {
+                        if let Some((start, count)) = parse_hunk_range(added.trim_start_matches('+')) {
+                            let file_added = info.added_lines.entry(file_path.clone()).or_default();
+                            for line_num in start..start + count {
+                                file_added.insert(line_num, LineHighlight::Added);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    info
+}
+
+/// Parse a hunk range like "10,5" or "10" into (start_line, count).
+fn parse_hunk_range(range: &str) -> Option<(usize, usize)> {
+    if range.contains(',') {
+        let parts: Vec<&str> = range.split(',').collect();
+        if parts.len() == 2 {
+            let start = parts[0].parse::<usize>().ok()?;
+            let count = parts[1].parse::<usize>().ok()?;
+            return Some((start, count));
+        }
+    } else {
+        let start = range.parse::<usize>().ok()?;
+        // Single line change
+        return Some((start, 1));
+    }
+    None
+}
+
 fn main() {
     let args: options::Args = clap::Parser::parse();
 
@@ -135,35 +221,44 @@ fn main() {
 
     //<
 
-    // render frame for each commit
+    // render frame for each commit with diff highlighting
     println!("Rendering commits...");
-    for (i, commit) in tqdm!(commit_list_vec.iter().rev().enumerate()) {
-        // git checkout <tag>
+    let commits: Vec<&str> = commit_list_vec.iter().rev().copied().collect();
+    let mut frame_num: usize = 0;
+
+    // Pre-load syntax and theme sets (they're expensive to create)
+    let ss = SyntaxSet::load_defaults_newlines();
+    let ts = ThemeSet::load_defaults();
+
+    // Helper to create base options
+    let make_opts = |line_highlights: LineHighlights| codevis::render::Options {
+        column_width: 100,
+        line_height: 2,
+        readable: false,
+        show_filenames: false,
+        target_aspect_ratio: args.width as f64 / args.height as f64,
+        threads: 0,
+        highlight_truncated_lines: false,
+        fg_color: FgColor::Style,
+        bg_color: BgColor::Style,
+        theme: "Solarized (dark)",
+        force_full_columns: false,
+        ignore_files_without_syntax: false,
+        plain: false,
+        display_to_be_processed_file: false,
+        color_modulation: 0.3,
+        tab_spaces: 4,
+        line_nums: false,
+        line_highlights,
+    };
+
+    // Helper to render and save a frame
+    let render_frame = |commit: &str, line_highlights: LineHighlights, frame_num: usize, ss: &SyntaxSet, ts: &ThemeSet| {
+        // git checkout the commit
         let _ = Command::new("git")
             .args(["checkout", commit])
             .output()
             .unwrap();
-
-        // configure how image should be rendered
-        let opts = codevis::render::Options {
-            column_width: 100,
-            line_height: 2,
-            readable: false,
-            show_filenames: false,
-            target_aspect_ratio: args.width as f64 / args.height as f64,
-            threads: 0,
-            highlight_truncated_lines: false,
-            fg_color: FgColor::Style,
-            bg_color: BgColor::Style,
-            theme: "Solarized (dark)",
-            force_full_columns: false,
-            ignore_files_without_syntax: false,
-            plain: false,
-            display_to_be_processed_file: false,
-            color_modulation: 0.3,
-            tab_spaces: 4,
-            line_nums: false,
-        };
 
         let progress: Arc<prodash::Tree> = prodash::TreeOptions {
             message_buffer_capacity: false.then(|| 200).unwrap_or(20),
@@ -180,24 +275,49 @@ fn main() {
         )
         .expect("failed to get list of files");
 
-        let ss = SyntaxSet::load_defaults_newlines();
-        let ts = ThemeSet::load_defaults();
+        let opts = make_opts(line_highlights);
 
-        // create image
-        // println!("rendering commit: {}", commit);
         let img = codevis::render(
             &paths,
             progress.add_child("render"),
             &should_interrupt,
-            &ss,
-            &ts,
+            ss,
+            ts,
             opts,
         )
         .expect("failed to render image");
 
-        // save image
-        let output_filename = &("../../frames/".to_owned() + &format!("{:09}", i) + ".png");
-        img.save(output_filename).expect("failed to save file");
+        let output_filename = format!("../../frames/{:09}.png", frame_num);
+        img.save(&output_filename).expect("failed to save file");
+    };
+
+    for (i, commit) in tqdm!(commits.iter().enumerate()) {
+        if i == 0 {
+            // First commit: just render normally (no previous commit to diff against)
+            render_frame(commit, HashMap::new(), frame_num, &ss, &ts);
+            frame_num += 1;
+        } else {
+            let prev_commit = commits[i - 1];
+            
+            // Get diff between previous and current commit
+            let diff_info = parse_git_diff(prev_commit, commit);
+
+            // 1. Deletion frame: Show OLD commit with removed lines highlighted in red
+            if !diff_info.removed_lines.is_empty() {
+                render_frame(prev_commit, diff_info.removed_lines, frame_num, &ss, &ts);
+                frame_num += 1;
+            }
+
+            // 2. Addition frame: Show NEW commit with added lines highlighted in green
+            if !diff_info.added_lines.is_empty() {
+                render_frame(commit, diff_info.added_lines, frame_num, &ss, &ts);
+                frame_num += 1;
+            }
+
+            // 3. Normal frame: Show NEW commit without highlights
+            render_frame(commit, HashMap::new(), frame_num, &ss, &ts);
+            frame_num += 1;
+        }
     }
 
     // move to frames directory

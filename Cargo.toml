@@ -10,7 +10,7 @@ image = "0.24"
 glob = "0.3.1"
 clap = { version = "4.2.7", features = ["derive"] }
 open = "4.1.0"
-codevis = "0.8.3"
+codevis = { path = "../codevis" }
 prodash = { version = "20.0.1", features = ["render-line", "render-line-crossterm", "signal-hook", "render-line-autoconfigure", "progress-tree", "unit-bytes"] }
 syntect = "5.0.0"
 kdam = "0.4.0"
