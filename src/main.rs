@@ -360,10 +360,8 @@ fn main() {
             &args.fps.to_string(),
             "-f",
             "image2",
-            "-pattern_type",
-            "glob",
             "-i",
-            "*.png",
+            "%09d.png",  // Use sequence pattern instead of glob (Windows compatible)
             &output_dir,
         ])
         .output()
