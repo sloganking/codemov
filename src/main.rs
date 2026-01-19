@@ -250,7 +250,7 @@ fn main() {
         threads: 0,
         highlight_truncated_lines: false,
         fg_color: FgColor::Style,
-        bg_color: BgColor::Style,
+        bg_color: BgColor::StyleCheckerboardDarken,
         theme: "Solarized (dark)",
         force_full_columns: false,
         ignore_files_without_syntax: false,
