@@ -131,9 +131,12 @@ pub fn parse_git_diff(old_commit: &str, new_commit: &str) -> DiffInfo {
 
                     // Parse removed lines (-old_start,old_count or -old_start)
                     if let Some(removed) = chunks.iter().find(|s| s.starts_with('-')) {
-                        if let Some((start, count)) = parse_hunk_range(removed.trim_start_matches('-')) {
+                        if let Some((start, count)) =
+                            parse_hunk_range(removed.trim_start_matches('-'))
+                        {
                             if count > 0 {
-                                let file_removed = info.removed_lines.entry(file_path.clone()).or_default();
+                                let file_removed =
+                                    info.removed_lines.entry(file_path.clone()).or_default();
                                 for line_num in start..start + count {
                                     file_removed.insert(line_num, LineHighlight::Removed);
                                 }
@@ -143,9 +146,12 @@ pub fn parse_git_diff(old_commit: &str, new_commit: &str) -> DiffInfo {
 
                     // Parse added lines (+new_start,new_count or +new_start)
                     if let Some(added) = chunks.iter().find(|s| s.starts_with('+')) {
-                        if let Some((start, count)) = parse_hunk_range(added.trim_start_matches('+')) {
+                        if let Some((start, count)) =
+                            parse_hunk_range(added.trim_start_matches('+'))
+                        {
                             if count > 0 {
-                                let file_added = info.added_lines.entry(file_path.clone()).or_default();
+                                let file_added =
+                                    info.added_lines.entry(file_path.clone()).or_default();
                                 for line_num in start..start + count {
                                     file_added.insert(line_num, LineHighlight::Added);
                                 }
@@ -257,7 +263,12 @@ fn main() {
     };
 
     // Helper to render and save a frame. Returns true if a frame was rendered, false if skipped.
-    let render_frame = |commit: &str, line_highlights: LineHighlights, frame_num: usize, ss: &SyntaxSet, ts: &ThemeSet| -> bool {
+    let render_frame = |commit: &str,
+                        line_highlights: LineHighlights,
+                        frame_num: usize,
+                        ss: &SyntaxSet,
+                        ts: &ThemeSet|
+     -> bool {
         // git checkout the commit
         let _ = Command::new("git")
             .args(["checkout", commit])
@@ -309,7 +320,7 @@ fn main() {
             }
         } else {
             let prev_commit = commits[i - 1];
-            
+
             // Get diff between previous and current commit
             let diff_info = parse_git_diff(prev_commit, commit);
 
@@ -365,7 +376,7 @@ fn main() {
             "-f",
             "image2",
             "-i",
-            "%09d.png",  // Use sequence pattern instead of glob (Windows compatible)
+            "%09d.png", // Use sequence pattern instead of glob (Windows compatible)
             &output_dir,
         ])
         .output()
