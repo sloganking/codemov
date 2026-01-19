@@ -132,9 +132,11 @@ pub fn parse_git_diff(old_commit: &str, new_commit: &str) -> DiffInfo {
                     // Parse removed lines (-old_start,old_count or -old_start)
                     if let Some(removed) = chunks.iter().find(|s| s.starts_with('-')) {
                         if let Some((start, count)) = parse_hunk_range(removed.trim_start_matches('-')) {
-                            let file_removed = info.removed_lines.entry(file_path.clone()).or_default();
-                            for line_num in start..start + count {
-                                file_removed.insert(line_num, LineHighlight::Removed);
+                            if count > 0 {
+                                let file_removed = info.removed_lines.entry(file_path.clone()).or_default();
+                                for line_num in start..start + count {
+                                    file_removed.insert(line_num, LineHighlight::Removed);
+                                }
                             }
                         }
                     }
@@ -142,9 +144,11 @@ pub fn parse_git_diff(old_commit: &str, new_commit: &str) -> DiffInfo {
                     // Parse added lines (+new_start,new_count or +new_start)
                     if let Some(added) = chunks.iter().find(|s| s.starts_with('+')) {
                         if let Some((start, count)) = parse_hunk_range(added.trim_start_matches('+')) {
-                            let file_added = info.added_lines.entry(file_path.clone()).or_default();
-                            for line_num in start..start + count {
-                                file_added.insert(line_num, LineHighlight::Added);
+                            if count > 0 {
+                                let file_added = info.added_lines.entry(file_path.clone()).or_default();
+                                for line_num in start..start + count {
+                                    file_added.insert(line_num, LineHighlight::Added);
+                                }
                             }
                         }
                     }
@@ -353,7 +357,7 @@ fn main() {
 
     // create video
     println!("generating video");
-    let _ = Command::new("ffmpeg")
+    let ffmpeg_output = Command::new("ffmpeg")
         .args([
             "-y",
             "-r",
@@ -365,7 +369,16 @@ fn main() {
             &output_dir,
         ])
         .output()
-        .unwrap();
+        .expect("Failed to run ffmpeg. Is ffmpeg installed and in your PATH?");
+
+    if !ffmpeg_output.status.success() {
+        let stderr = String::from_utf8_lossy(&ffmpeg_output.stderr);
+        eprintln!("Error: ffmpeg failed to generate video.");
+        eprintln!("ffmpeg stderr:\n{}", stderr);
+        std::process::exit(1);
+    }
+
+    println!("Video saved to: {}", output_dir);
 
     if args.open {
         open::that(output_dir).expect("Could not open video");
